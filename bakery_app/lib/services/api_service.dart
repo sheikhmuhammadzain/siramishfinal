@@ -83,7 +83,7 @@ class ApiService {
   // Users API
   Future<List<Map<String, dynamic>>> getUsers() async {
     try {
-      final response = await _get('/api/users/');
+      final response = await _get('/users/');
       final List<dynamic> data = json.decode(response.body);
       return List<Map<String, dynamic>>.from(data);
     } catch (e) {
@@ -93,7 +93,7 @@ class ApiService {
 
   Future<void> createUser(Map<String, dynamic> userData) async {
     try {
-      await _post('/api/users/', userData);
+      await _post('/users/', userData);
     } catch (e) {
       throw Exception('Failed to create user: $e');
     }
@@ -101,7 +101,7 @@ class ApiService {
 
   Future<void> updateUser(int userId, Map<String, dynamic> userData) async {
     try {
-      await _patch('/api/users/$userId/', userData);
+      await _patch('/users/$userId/', userData);
     } catch (e) {
       throw Exception('Failed to update user: $e');
     }
@@ -109,7 +109,7 @@ class ApiService {
 
   Future<void> deleteUser(int userId) async {
     try {
-      await _delete('/api/users/$userId/');
+      await _delete('/users/$userId/');
     } catch (e) {
       throw Exception('Failed to delete user: $e');
     }
@@ -118,10 +118,14 @@ class ApiService {
   // Orders API
   Future<List<Map<String, dynamic>>> getOrders() async {
     try {
-      final response = await _get('/api/orders/');
-      final List<dynamic> data = json.decode(response.body);
-      return List<Map<String, dynamic>>.from(data);
+      final response = await _get('/orders/');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return List<Map<String, dynamic>>.from(data);
+      }
+      throw Exception('Failed to load orders: Status ${response.statusCode}');
     } catch (e) {
+      print('Error in getOrders: $e'); // Add logging
       throw Exception('Failed to load orders: $e');
     }
   }
@@ -129,7 +133,7 @@ class ApiService {
   Future<void> updateOrderStatus(int orderId, String status) async {
     try {
       await _patch(
-        '/api/orders/$orderId/',
+        '/orders/$orderId/',
         {'status': status},
       );
     } catch (e) {

@@ -62,6 +62,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     user = UserSerializer(read_only=True)
+    total_amount = serializers.DecimalField(max_digits=10, decimal_places=2, coerce_to_string=False)
     
     class Meta:
         model = Order

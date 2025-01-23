@@ -20,16 +20,26 @@ class Order {
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
-    return Order(
-      id: json['id'],
-      customerName: json['user']['username'] ?? 'Unknown',
-      total: (json['total'] as num).toDouble(),
-      date: DateTime.parse(json['created_at']),
-      status: json['status'] ?? 'Pending',
-      items: (json['items'] as List)
-          .map((item) => OrderItem.fromJson(item))
-          .toList(),
-    );
+    try {
+      var totalAmount = json['total_amount'];
+      if (totalAmount == null) {
+        throw Exception('total_amount is null');
+      }
+      return Order(
+        id: json['id'] ?? 0,
+        customerName: json['user']?['username'] ?? 'Unknown',
+        total: (totalAmount is int) ? totalAmount.toDouble() : double.parse(totalAmount.toString()),
+        date: DateTime.parse(json['created_at'] ?? DateTime.now().toIso8601String()),
+        status: json['status'] ?? 'Pending',
+        items: ((json['items'] as List?) ?? [])
+            .map((item) => OrderItem.fromJson(item))
+            .toList(),
+      );
+    } catch (e) {
+      print('Error parsing order JSON: $json');
+      print('Error details: $e');
+      rethrow;
+    }
   }
 }
 
@@ -45,11 +55,21 @@ class OrderItem {
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
-    return OrderItem(
-      productName: json['product']['name'],
-      quantity: json['quantity'],
-      price: (json['price'] as num).toDouble(),
-    );
+    try {
+      var price = json['price'];
+      if (price == null) {
+        throw Exception('price is null');
+      }
+      return OrderItem(
+        productName: json['product']?['name'] ?? 'Unknown Product',
+        quantity: json['quantity'] ?? 1,
+        price: (price is int) ? price.toDouble() : double.parse(price.toString()),
+      );
+    } catch (e) {
+      print('Error parsing order item JSON: $json');
+      print('Error details: $e');
+      rethrow;
+    }
   }
 }
 
@@ -75,11 +95,16 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   Future<void> _loadOrders() async {
     try {
       final orders = await _apiService.getOrders();
+      print('Received orders data: $orders'); // Debug print
       setState(() {
-        _orders = orders.map((order) => Order.fromJson(order)).toList();
+        _orders = orders.map((order) {
+          print('Processing order: $order'); // Debug print
+          return Order.fromJson(order);
+        }).toList();
         _isLoading = false;
       });
     } catch (e) {
+      print('Error in _loadOrders: $e'); // Debug print
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error loading orders: $e')),

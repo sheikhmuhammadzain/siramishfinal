@@ -62,6 +62,16 @@ class RegisterView(generics.CreateAPIView):
             return Response(data, status=status.HTTP_201_CREATED, headers=headers)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+class UserListView(generics.ListAPIView):
+    serializer_class = UserSerializer
+    permission_classes = (permissions.IsAdminUser,)
+    queryset = User.objects.all()
+
+class UserDetailView(generics.RetrieveUpdateDestroyAPIView):
+    serializer_class = UserSerializer
+    permission_classes = (permissions.IsAdminUser,)
+    queryset = User.objects.all()
+
 class ProductListView(generics.ListAPIView):
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
