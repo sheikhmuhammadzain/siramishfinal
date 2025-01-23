@@ -54,48 +54,72 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
     }
   }
 
-  Future<void> _showAddEditProductDialog(BuildContext context,
-      [Product? product]) async {
+  Future<void> _showAddEditProductDialog(BuildContext context, [Product? product]) async {
+    final formKey = GlobalKey<FormState>();
     final nameController = TextEditingController(text: product?.name);
-    final descriptionController =
-        TextEditingController(text: product?.description);
+    final descriptionController = TextEditingController(text: product?.description);
     final priceController = TextEditingController(
-      text: product?.price.toStringAsFixed(2),
+      text: product?.price.toStringAsFixed(2) ?? '0.00',
     );
     final imageController = TextEditingController(text: product?.image);
-    final categoryController = TextEditingController(text: product?.category);
+    final categoryController = TextEditingController(text: product?.category ?? 'main');
 
     await showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(product == null ? 'Add Product' : 'Edit Product'),
         content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameController,
-                decoration: const InputDecoration(labelText: 'Name'),
-              ),
-              TextField(
-                controller: descriptionController,
-                decoration: const InputDecoration(labelText: 'Description'),
-                maxLines: 3,
-              ),
-              TextField(
-                controller: priceController,
-                decoration: const InputDecoration(labelText: 'Price'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: imageController,
-                decoration: const InputDecoration(labelText: 'Image URL'),
-              ),
-              TextField(
-                controller: categoryController,
-                decoration: const InputDecoration(labelText: 'Category'),
-              ),
-            ],
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Name*'),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a name';
+                    }
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(labelText: 'Description*'),
+                  maxLines: 3,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a description';
+                    }
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  controller: priceController,
+                  decoration: const InputDecoration(labelText: 'Price*'),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a price';
+                    }
+                    final price = double.tryParse(value);
+                    if (price == null || price <= 0) {
+                      return 'Please enter a valid price';
+                    }
+                    return null;
+                  },
+                ),
+                TextFormField(
+                  controller: imageController,
+                  decoration: const InputDecoration(labelText: 'Image URL'),
+                ),
+                TextFormField(
+                  controller: categoryController,
+                  decoration: const InputDecoration(labelText: 'Category'),
+                ),
+              ],
+            ),
           ),
         ),
         actions: [
@@ -105,40 +129,44 @@ class _AdminProductsScreenState extends State<AdminProductsScreen> {
           ),
           TextButton(
             onPressed: () async {
-              try {
-                final productData = {
-                  'name': nameController.text,
-                  'description': descriptionController.text,
-                  'price': double.parse(priceController.text),
-                  'image': imageController.text,
-                  'category': categoryController.text,
-                };
+              if (formKey.currentState!.validate()) {
+                try {
+                  final productData = {
+                    'name': nameController.text,
+                    'description': descriptionController.text,
+                    'price': double.parse(priceController.text),
+                    'image': imageController.text,
+                    'category': categoryController.text.isNotEmpty 
+                        ? categoryController.text 
+                        : 'main',
+                  };
 
-                if (product == null) {
-                  // Create new product
-                  await _apiService.createProduct(productData);
-                } else {
-                  // Update existing product
-                  await _apiService.updateProduct(product.id, productData);
-                }
+                  if (product == null) {
+                    await _apiService.createProduct(productData);
+                  } else {
+                    await _apiService.updateProduct(product.id, productData);
+                  }
 
-                if (!mounted) return;
-                Navigator.of(ctx).pop();
-                _loadProducts(); // Refresh the products list
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      product == null
-                          ? 'Product created successfully'
-                          : 'Product updated successfully',
+                  if (!mounted) return;
+                  Navigator.of(ctx).pop();
+                  _loadProducts(); // Refresh the products list
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        product == null
+                            ? 'Product created successfully'
+                            : 'Product updated successfully',
+                      ),
                     ),
-                  ),
-                );
-              } catch (e) {
-                if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error: $e')),
-                );
+                  );
+                } catch (e) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $e'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
               }
             },
             child: const Text('Save'),

@@ -40,9 +40,14 @@ class UserSerializer(serializers.ModelSerializer):
         return user
 
 class ProductSerializer(serializers.ModelSerializer):
+    price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    image = serializers.URLField(required=False, allow_blank=True, allow_null=True)
+    category = serializers.CharField(max_length=100, required=False, default='main')
+
     class Meta:
         model = Product
         fields = '__all__'
+        read_only_fields = ('created_at',)
 
 class CartItemSerializer(serializers.ModelSerializer):
     product = ProductSerializer(read_only=True)

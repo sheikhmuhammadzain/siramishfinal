@@ -36,47 +36,57 @@ class ApiService {
 
   // Products API
   Future<List<Product>> getProducts(String category) async {
-    final url = category == 'all' 
-        ? '$baseUrl/products/' 
-        : '$baseUrl/products/?category=$category';
-    final response = await http.get(Uri.parse(url), headers: _headers);
-    if (response.statusCode == 200) {
-      final List<dynamic> data = json.decode(response.body);
-      return data.map((json) => Product.fromJson(json)).toList();
+    try {
+      final url = category == 'all' ? '/products/' : '/products/?category=$category';
+      final response = await _get(url);
+      if (response.statusCode == 200) {
+        final List<dynamic> data = json.decode(response.body);
+        return data.map((json) => Product.fromJson(json)).toList();
+      }
+      throw Exception('Failed to load products: Status ${response.statusCode}');
+    } catch (e) {
+      print('Error in getProducts: $e');
+      throw Exception('Failed to load products: $e');
     }
-    throw Exception('Failed to load products');
   }
 
   Future<Product> createProduct(Map<String, dynamic> product) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/products/'),
-      headers: _headers,
-      body: json.encode(product),
-    );
-    if (response.statusCode == 201) {
-      return Product.fromJson(json.decode(response.body));
+    try {
+      final response = await _post('/products/', product);
+      if (response.statusCode == 201) {
+        return Product.fromJson(json.decode(response.body));
+      }
+      print('Create product error: ${response.body}');
+      throw Exception('Failed to create product: Status ${response.statusCode}');
+    } catch (e) {
+      print('Error in createProduct: $e');
+      throw Exception('Failed to create product: $e');
     }
-    throw Exception('Failed to create product');
   }
 
   Future<void> updateProduct(int id, Map<String, dynamic> product) async {
-    final response = await http.put(
-      Uri.parse('$baseUrl/products/$id/'),
-      headers: _headers,
-      body: json.encode(product),
-    );
-    if (response.statusCode != 200) {
-      throw Exception('Failed to update product');
+    try {
+      final response = await _patch('/products/$id/', product);
+      if (response.statusCode != 200) {
+        print('Update product error: ${response.body}');
+        throw Exception('Failed to update product: Status ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error in updateProduct: $e');
+      throw Exception('Failed to update product: $e');
     }
   }
 
   Future<void> deleteProduct(int id) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/products/$id/'),
-      headers: _headers,
-    );
-    if (response.statusCode != 204) {
-      throw Exception('Failed to delete product');
+    try {
+      final response = await _delete('/products/$id/');
+      if (response.statusCode != 204) {
+        print('Delete product error: ${response.body}');
+        throw Exception('Failed to delete product: Status ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error in deleteProduct: $e');
+      throw Exception('Failed to delete product: $e');
     }
   }
 
