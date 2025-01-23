@@ -10,7 +10,8 @@ from .views import (
     OrderDetailView,
     CustomTokenObtainPairView,
     UserListView,
-    UserDetailView
+    UserDetailView,
+    analytics
 )
 
 urlpatterns = [
@@ -25,4 +26,5 @@ urlpatterns = [
     path('orders/<int:pk>/', OrderDetailView.as_view(), name='order-detail'),
     path('users/', UserListView.as_view(), name='user-list'),
     path('users/<int:pk>/', UserDetailView.as_view(), name='user-detail'),
+    path('analytics/', analytics, name='analytics'),
 ]

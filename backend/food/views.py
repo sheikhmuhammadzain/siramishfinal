@@ -4,6 +4,9 @@ from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth.models import User
 from .models import Product, CartItem, Order, OrderItem
+from django.db.models import Count, Sum
+from django.utils import timezone
+from datetime import timedelta
 from rest_framework_simplejwt.views import TokenObtainPairView
 from .serializers import (
     UserSerializer, 
@@ -162,6 +165,39 @@ class CartItemView(generics.ListCreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+@api_view(['GET'])
+@permission_classes([permissions.IsAdminUser])
+def analytics(request):
+    try:
+        # Get period from query params (default to 30 days)
+        days = int(request.query_params.get('days', 30))
+        
+        # Get analytics data
+        data = {
+            'total_sales': Order.get_total_sales(),
+            'period_sales': Order.get_sales_by_period(days),
+            'order_stats': Order.get_order_stats(),
+            'top_products': OrderItem.objects.values(
+                'product__name'
+            ).annotate(
+                total_quantity=Sum('quantity'),
+                total_sales=Sum('price')
+            ).order_by('-total_quantity')[:5],
+            'daily_sales': Order.objects.filter(
+                status='completed',
+                created_at__gte=timezone.now() - timedelta(days=days)
+            ).values('created_at__date').annotate(
+                total=Sum('total_amount')
+            ).order_by('created_at__date')
+        }
+        
+        return Response(data)
+    except Exception as e:
+        return Response(
+            {'error': str(e)}, 
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
 class OrderListView(generics.ListCreateAPIView):
     serializer_class = OrderSerializer
     permission_classes = (permissions.IsAuthenticated,)
@@ -173,7 +209,6 @@ class OrderListView(generics.ListCreateAPIView):
 
     def create(self, request, *args, **kwargs):
         try:
-            # Get cart items
             cart_items = CartItem.objects.filter(user=request.user)
             if not cart_items:
                 return Response(
@@ -181,19 +216,24 @@ class OrderListView(generics.ListCreateAPIView):
                     status=status.HTTP_400_BAD_REQUEST
                 )
 
-            # Calculate total amount
+            # Get additional order details
+            delivery_address = request.data.get('delivery_address', '')
+            payment_method = request.data.get('payment_method', 'cash')
+            notes = request.data.get('notes', '')
+
             total_amount = sum(
                 item.product.price * item.quantity 
                 for item in cart_items
             )
 
-            # Create order
             order = Order.objects.create(
                 user=request.user,
-                total_amount=total_amount
+                total_amount=total_amount,
+                delivery_address=delivery_address,
+                payment_method=payment_method,
+                notes=notes
             )
 
-            # Create order items
             for cart_item in cart_items:
                 OrderItem.objects.create(
                     order=order,
@@ -202,7 +242,6 @@ class OrderListView(generics.ListCreateAPIView):
                     price=cart_item.product.price
                 )
 
-            # Clear cart
             cart_items.delete()
 
             serializer = self.get_serializer(order)

@@ -77,10 +77,41 @@ class _HomeScreenState extends State<HomeScreen> {
         title: const Text('Sheikh Bakery'),
         automaticallyImplyLeading: false,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.shopping_cart),
-            onPressed: () => Navigator.pushNamed(context, '/cart'),
-          ),
+            Consumer<CartProvider>(
+            builder: (context, cart, child) => Stack(
+              clipBehavior: Clip.none,
+              children: [
+              IconButton(
+                icon: const Icon(Icons.shopping_cart),
+                onPressed: () => Navigator.pushNamed(context, '/cart'),
+              ),
+              if (cart.itemCount > 0)
+                Positioned(
+                right: 0,
+                top: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.error,
+                  borderRadius: BorderRadius.circular(10),
+                  ),
+                  constraints: const BoxConstraints(
+                  minWidth: 20,
+                  minHeight: 20,
+                  ),
+                  child: Text(
+                  '${cart.itemCount}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                  ),
+                  textAlign: TextAlign.center,
+                  ),
+                ),
+                ),
+              ],
+            ),
+            ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.account_circle),
             itemBuilder: (ctx) => <PopupMenuEntry<String>>[

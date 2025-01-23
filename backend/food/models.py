@@ -36,9 +36,40 @@ class Order(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    delivery_address = models.TextField(blank=True, null=True)
+    payment_method = models.CharField(max_length=50, default='cash')
+    notes = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return f"Order #{self.id} - {self.user.username}"
+
+    @classmethod
+    def get_total_sales(cls):
+        return cls.objects.filter(status='completed').aggregate(
+            total=models.Sum('total_amount')
+        )['total'] or 0
+
+    @classmethod
+    def get_sales_by_period(cls, days):
+        from django.utils import timezone
+        from datetime import timedelta
+        start_date = timezone.now() - timedelta(days=days)
+        return cls.objects.filter(
+            status='completed',
+            created_at__gte=start_date
+        ).aggregate(
+            total=models.Sum('total_amount')
+        )['total'] or 0
+
+    @classmethod
+    def get_order_stats(cls):
+        return {
+            'total': cls.objects.count(),
+            'pending': cls.objects.filter(status='pending').count(),
+            'processing': cls.objects.filter(status='processing').count(),
+            'completed': cls.objects.filter(status='completed').count(),
+            'cancelled': cls.objects.filter(status='cancelled').count(),
+        }
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, related_name='items', on_delete=models.CASCADE)

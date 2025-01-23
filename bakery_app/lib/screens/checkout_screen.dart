@@ -37,39 +37,60 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       // Simulate API call
       await Future.delayed(const Duration(seconds: 2));
 
-      if (!mounted) return;
+        if (!mounted) return;
 
-      // Clear cart
-      final cartProvider = Provider.of<CartProvider>(context, listen: false);
-      cartProvider.clear();
+        // Clear cart
+        final cartProvider = Provider.of<CartProvider>(context, listen: false);
+        cartProvider.clear();
 
-      // Pop loading dialog
-      if (!mounted) return;
-      Navigator.of(context).pop();
+        // Pop loading dialog
+        if (!mounted) return;
+        Navigator.of(context).pop();
 
-      // Show success dialog and navigate
-      if (!mounted) return;
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (BuildContext dialogContext) => AlertDialog(
-          title: const Text('Success'),
-          content: const Text('Your order has been placed successfully!'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                // Pop all routes and navigate to home
-                Navigator.of(dialogContext).pop(); // Close dialog
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  '/',
-                  (Route<dynamic> route) => false,
-                );
-              },
-              child: const Text('OK'),
+        // Show success screen and auto-navigate
+        if (!mounted) return;
+        Navigator.of(context).pushReplacement(
+        PageRouteBuilder(
+          pageBuilder: (context, animation, secondaryAnimation) => Scaffold(
+          body: Container(
+            color: Colors.white,
+            child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+              const Icon(
+                Icons.check_circle_outline,
+                color: Colors.green,
+                size: 100,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Order Placed Successfully!',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  color: Colors.black,
+                  fontFamily: 'Bodoni',
+                  ),
+              ),
+              ],
             ),
-          ],
+            ),
+          ),
+          ),
+          transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(opacity: animation, child: child);
+          },
+          transitionDuration: const Duration(milliseconds: 500),
         ),
-      );
+        );
+
+        // Auto-navigate to home after 2 seconds
+        await Future.delayed(const Duration(seconds: 2));
+        if (!mounted) return;
+        Navigator.of(context).pushNamedAndRemoveUntil(
+        '/',
+        (Route<dynamic> route) => false,
+        );
+
     } catch (error) {
       if (!mounted) return;
       
