@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,11 +7,13 @@ class AuthProvider with ChangeNotifier {
   String? _token;
   String? _refreshToken;
   String? _userId;
+  bool _isAdmin = false;
 
   bool get isAuth {
-    print('isAuth called: token = $_token');
     return _token != null;
   }
+  
+  bool get isAdmin => _isAdmin;
   String? get token => _token;
   String? get userId => _userId;
 
@@ -20,14 +21,17 @@ class AuthProvider with ChangeNotifier {
     try {
       final url = 'http://127.0.0.1:8000/api/$urlSegment/';
       
-      final Map<String, String> requestData = {
-        'username': email.split('@')[0],
-        'email': email,
-        'password': password,
-      };
+      final Map<String, String> requestData = urlSegment == 'register'
+          ? {
+              'email': email,
+              'password': password,
+            }
+          : {
+              'username': email.split('@')[0],
+              'password': password,
+            };
 
-      print('Making request to: $url');
-      print('Request data: $requestData');
+      print('Sending request to $url with data: ${json.encode(requestData)}'); // Debug log
 
       final response = await http.post(
         Uri.parse(url),
@@ -38,8 +42,8 @@ class AuthProvider with ChangeNotifier {
         body: json.encode(requestData),
       );
 
-      print('Response status: ${response.statusCode}');
-      print('Response body: ${response.body}');
+      print('Response status: ${response.statusCode}'); // Debug log
+      print('Response body: ${response.body}'); // Debug log
 
       if (response.statusCode >= 400) {
         try {
@@ -48,6 +52,8 @@ class AuthProvider with ChangeNotifier {
             final errorMessage = responseData['detail'] ?? 
                                responseData['error'] ?? 
                                responseData['message'] ??
+                               responseData.values.first is List ? 
+                               responseData.values.first.first :
                                'Authentication failed';
             throw Exception(errorMessage);
           }
@@ -58,45 +64,44 @@ class AuthProvider with ChangeNotifier {
       }
 
       final responseData = json.decode(response.body);
-      print('Parsed response data: $responseData');
 
       if (urlSegment == 'register') {
-        print('Registration successful, proceeding to login');
+        // For registration response, check if user is admin
+        _isAdmin = responseData['is_staff'] ?? false;
+        // After successful registration, login
         return await _authenticate(email, password, 'login');
       }
 
-      // Handle JWT response format
       if (responseData['access'] != null) {
         _token = responseData['access'];
         _refreshToken = responseData['refresh'];
         
-        // Extract user_id from the JWT token
+        // Parse JWT token to get user info
         final payloadBase64 = _token!.split('.')[1];
         final payloadPadded = base64Url.normalize(payloadBase64);
         final payload = json.decode(utf8.decode(base64Url.decode(payloadPadded)));
+        
         _userId = payload['user_id'].toString();
-
-        print('Setting access token: $_token');
-        print('Setting refresh token: $_refreshToken');
-        print('Setting userId: $_userId');
+        // Check both is_staff and is_superuser for admin status
+        _isAdmin = payload['is_staff'] == true || payload['is_superuser'] == true;
+        print('JWT Payload: $payload'); // Debug log
+        print('User is admin: $_isAdmin'); // Debug log
 
         final prefs = await SharedPreferences.getInstance();
         final userData = json.encode({
           'token': _token,
           'refreshToken': _refreshToken,
           'userId': _userId,
+          'isAdmin': _isAdmin,
         });
         await prefs.setString('userData', userData);
-        print('Saved user data to SharedPreferences');
 
         notifyListeners();
-        print('Notified listeners of auth state change');
       } else {
         throw Exception('No access token received from server');
       }
-
     } catch (error) {
-      print('Authentication error: $error');
+      print('Authentication error: $error'); // Debug log
       if (error is Exception) {
         rethrow;
       }
@@ -116,12 +121,12 @@ class AuthProvider with ChangeNotifier {
     _token = null;
     _refreshToken = null;
     _userId = null;
+    _isAdmin = false;
     
     final prefs = await SharedPreferences.getInstance();
     prefs.remove('userData');
     
     notifyListeners();
-    print('Logged out, tokens and userId cleared');
   }
 
   Future<bool> tryAutoLogin() async {
@@ -134,19 +139,17 @@ class AuthProvider with ChangeNotifier {
     _token = extractedUserData['token'];
     _refreshToken = extractedUserData['refreshToken'];
     _userId = extractedUserData['userId'];
+    _isAdmin = extractedUserData['isAdmin'] ?? false;
     
     notifyListeners();
     return true;
   }
 
-  // Add method to refresh token when needed
   Future<bool> refreshToken() async {
-    if (_refreshToken == null) {
-      return false;
-    }
+    if (_refreshToken == null) return false;
 
     try {
-      final url = 'http://127.0.0.1:8000/api/token/refresh/';
+      const url = 'http://127.0.0.1:8000/api/login/refresh/';
       final response = await http.post(
         Uri.parse(url),
         headers: {
@@ -167,6 +170,7 @@ class AuthProvider with ChangeNotifier {
           'token': _token,
           'refreshToken': _refreshToken,
           'userId': _userId,
+          'isAdmin': _isAdmin,
         });
         await prefs.setString('userData', userData);
         
@@ -175,6 +179,7 @@ class AuthProvider with ChangeNotifier {
       }
       return false;
     } catch (error) {
+      print('Token refresh error: $error'); // Debug log
       return false;
     }
   }

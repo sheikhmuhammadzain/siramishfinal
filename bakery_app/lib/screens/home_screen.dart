@@ -5,8 +5,6 @@ import '../providers/auth_provider.dart';
 import '../models/product.dart';
 import '../services/api_service.dart';
 import 'package:shimmer/shimmer.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import '../widgets/footer.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -17,7 +15,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final ApiService _apiService = ApiService();
+  late final ApiService _apiService;
   List<Product> _products = [];
   String _selectedCategory = 'all';
   bool _isLoading = true;
@@ -38,7 +36,11 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchProducts();
+    // Initialize ApiService after the widget is built to have access to context
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _apiService = ApiService(context);
+      _fetchProducts();
+    });
   }
 
   Future<void> _fetchProducts() async {
@@ -72,49 +74,69 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
+        title: const Text('Sheikh Bakery'),
+        automaticallyImplyLeading: false,
         actions: [
-          Stack(
-            alignment: Alignment.center,
-            children: [
-              IconButton(
-                icon: const Icon(Icons.shopping_bag_outlined),
-                color: Colors.black,
-                onPressed: () {
-                  Navigator.of(context).pushNamed('/cart');
-                },
+          IconButton(
+            icon: const Icon(Icons.shopping_cart),
+            onPressed: () => Navigator.pushNamed(context, '/cart'),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.account_circle),
+            itemBuilder: (ctx) => <PopupMenuEntry<String>>[
+              PopupMenuItem<String>(
+                value: 'profile',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.person),
+                  title: const Text('Profile'),
+                ),
               ),
-              Positioned(
-                top: 8,
-                right: 8,
-                child: Consumer<CartProvider>(
-                  builder: (ctx, cart, child) => cart.itemCount > 0
-                      ? Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: const BoxDecoration(
-                            color: Colors.black,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Text(
-                            cart.itemCount.toString(),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 10,
-                            ),
-                          ),
-                        )
-                      : const SizedBox(),
+              PopupMenuItem<String>(
+                value: 'account',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.settings),
+                  title: const Text('Account'),
+                ),
+              ),
+              PopupMenuItem<String>(
+                value: 'dashboard',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.dashboard),
+                  title: const Text('Dashboard'),
+                ),
+              ),
+              const PopupMenuDivider(),
+              PopupMenuItem<String>(
+                value: 'logout',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
+                  title: Text(
+                    'Logout',
+                    style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  ),
                 ),
               ),
             ],
-          ),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            color: Colors.black,
-            onPressed: () {
-              Provider.of<AuthProvider>(context, listen: false).logout();
-              Navigator.of(context).pushReplacementNamed('/login');
+            onSelected: (value) {
+              switch (value) {
+                case 'profile':
+                  Navigator.pushNamed(context, '/profile');
+                  break;
+                case 'account':
+                  Navigator.pushNamed(context, '/account');
+                  break;
+                case 'dashboard':
+                  Navigator.pushNamed(context, '/dashboard');
+                  break;
+                case 'logout':
+                  Provider.of<AuthProvider>(context, listen: false).logout();
+                  Navigator.of(context).pushReplacementNamed('/');
+                  break;
+              }
             },
           ),
         ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import 'home_screen.dart';
+import 'admin_dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -50,21 +51,25 @@ class _LoginScreenState extends State<LoginScreen> {
       // Check if authentication was successful
       final authProvider = Provider.of<AuthProvider>(context, listen: false);
       if (authProvider.isAuth) {
-        print('Authentication successful, navigating to home');
-        // Use Navigator.of(context).pushAndRemoveUntil for a clean navigation stack
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (context) => const HomeScreen()),
-          (Route<dynamic> route) => false,
-        );
+        // Navigate based on user role
+        if (authProvider.isAdmin) {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const AdminDashboardScreen()),
+            (Route<dynamic> route) => false,
+          );
+        } else {
+          Navigator.of(context).pushAndRemoveUntil(
+            MaterialPageRoute(builder: (context) => const HomeScreen()),
+            (Route<dynamic> route) => false,
+          );
+        }
       } else {
-        print('Authentication failed: token not set');
         throw Exception('Login failed: Please try again');
       }
       
     } catch (error) {
       if (!mounted) return;
       
-      print('Error during authentication: $error');
       String errorMessage = error.toString();
       if (errorMessage.startsWith('Exception: ')) {
         errorMessage = errorMessage.substring('Exception: '.length);

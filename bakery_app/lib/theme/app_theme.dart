@@ -10,9 +10,9 @@ class AppTheme {
         surface: Colors.brown.shade50,
       ),
       useMaterial3: true,
-      textTheme: TextTheme(
+      textTheme: const TextTheme(
         // Large titles
-        displayLarge: const TextStyle(
+        displayLarge: TextStyle(
           fontFamily: 'Playfair Display',
           fontSize: 48,
           fontWeight: FontWeight.bold,
@@ -20,7 +20,7 @@ class AppTheme {
           color: Colors.brown,
         ),
         // Medium titles
-        displayMedium: const TextStyle(
+        displayMedium: TextStyle(
           fontFamily: 'Playfair Display',
           fontSize: 36,
           fontWeight: FontWeight.bold,
@@ -28,7 +28,7 @@ class AppTheme {
           color: Colors.brown,
         ),
         // Section headers
-        titleLarge: const TextStyle(
+        titleLarge: TextStyle(
           fontFamily: 'Playfair Display',
           fontSize: 24,
           fontWeight: FontWeight.bold,
@@ -36,7 +36,7 @@ class AppTheme {
           color: Colors.brown,
         ),
         // Regular text
-        bodyLarge: const TextStyle(
+        bodyLarge: TextStyle(
           fontFamily: 'Playfair Display',
           fontSize: 16,
           fontWeight: FontWeight.normal,
@@ -44,7 +44,7 @@ class AppTheme {
           color: Colors.brown,
         ),
         // Smaller text
-        bodyMedium: const TextStyle(
+        bodyMedium: TextStyle(
           fontFamily: 'Playfair Display',
           fontSize: 14,
           fontWeight: FontWeight.normal,
@@ -95,15 +95,15 @@ class AppTheme {
         ),
       ),
       // App bar theme
-      appBarTheme: AppBarTheme(
-        backgroundColor: Colors.brown.shade900,
+      appBarTheme: const AppBarTheme(
+        backgroundColor: Colors.deepPurple,
         foregroundColor: Colors.white,
-        elevation: 0,
-        titleTextStyle: const TextStyle(
-          fontFamily: 'Playfair Display',
-          fontSize: 24,
+        iconTheme: IconThemeData(color: Colors.white),
+        actionsIconTheme: IconThemeData(color: Colors.white),
+        titleTextStyle: TextStyle(
+          color: Colors.white,
+          fontSize: 20,
           fontWeight: FontWeight.bold,
-          letterSpacing: 0.5,
         ),
       ),
     );

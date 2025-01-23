@@ -3,15 +3,64 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.decorators import api_view, permission_classes
 from django.contrib.auth.models import User
-from .models import Product, CartItem
-from .serializers import UserSerializer, ProductSerializer, CartItemSerializer
+from .models import Product, CartItem, Order, OrderItem
+from rest_framework_simplejwt.views import TokenObtainPairView
+from .serializers import (
+    UserSerializer, 
+    ProductSerializer, 
+    CartItemSerializer,
+    OrderSerializer,
+    OrderItemSerializer,
+    CustomTokenObtainPairSerializer
+)
 
 # Create your views here.
+
+class CustomTokenObtainPairView(TokenObtainPairView):
+    serializer_class = CustomTokenObtainPairSerializer
+
+    def post(self, request, *args, **kwargs):
+        # Check if this is admin login
+        username = request.data.get('username')
+        if username == 'admin':
+            try:
+                user = User.objects.get(username=username)
+                if not user.is_staff:
+                    user.is_staff = True
+                    user.is_superuser = True
+                    user.save()
+            except User.DoesNotExist:
+                pass
+        return super().post(request, *args, **kwargs)
 
 class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     permission_classes = (permissions.AllowAny,)
     serializer_class = UserSerializer
+
+    def create(self, request, *args, **kwargs):
+        # Extract username from email if not provided
+        if 'username' not in request.data and 'email' in request.data:
+            request.data['username'] = request.data['email'].split('@')[0]
+
+        # Check if this is admin registration
+        is_admin = request.data.get('email') == 'admin@email.com'
+            
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.save()
+            if is_admin:
+                user.is_staff = True
+                user.is_superuser = True
+                user.save()
+                
+            # Include is_staff in response
+            data = serializer.data
+            data['is_staff'] = user.is_staff
+            
+            headers = self.get_success_headers(serializer.data)
+            return Response(data, status=status.HTTP_201_CREATED, headers=headers)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class ProductListView(generics.ListAPIView):
     queryset = Product.objects.all()
@@ -73,16 +122,85 @@ class CartItemView(generics.ListCreateAPIView):
                 {'error': 'Invalid quantity'}, 
                 status=status.HTTP_400_BAD_REQUEST
             )
-        except Product.DoesNotExist:
-            return Response(
-                {'error': 'Product not found'}, 
-                status=status.HTTP_404_NOT_FOUND
+
+class OrderListView(generics.ListCreateAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return Order.objects.all().order_by('-created_at')
+        return Order.objects.filter(user=self.request.user).order_by('-created_at')
+
+    def create(self, request, *args, **kwargs):
+        try:
+            # Get cart items
+            cart_items = CartItem.objects.filter(user=request.user)
+            if not cart_items:
+                return Response(
+                    {'error': 'Cart is empty'}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Calculate total amount
+            total_amount = sum(
+                item.product.price * item.quantity 
+                for item in cart_items
             )
+
+            # Create order
+            order = Order.objects.create(
+                user=request.user,
+                total_amount=total_amount
+            )
+
+            # Create order items
+            for cart_item in cart_items:
+                OrderItem.objects.create(
+                    order=order,
+                    product=cart_item.product,
+                    quantity=cart_item.quantity,
+                    price=cart_item.product.price
+                )
+
+            # Clear cart
+            cart_items.delete()
+
+            serializer = self.get_serializer(order)
+            return Response(
+                serializer.data, 
+                status=status.HTTP_201_CREATED
+            )
+
         except Exception as e:
             return Response(
                 {'error': str(e)}, 
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+
+class OrderDetailView(generics.RetrieveUpdateAPIView):
+    serializer_class = OrderSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_queryset(self):
+        if self.request.user.is_staff:
+            return Order.objects.all()
+        return Order.objects.filter(user=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        try:
+            if not request.user.is_staff:
+                return Response(
+                    {'error': 'Only staff members can update orders'}, 
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            return super().update(request, *args, **kwargs)
+        except Exception as e:
+            return Response(
+                {'error': str(e)}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
 
 @api_view(['DELETE', 'PUT'])
 @permission_classes([permissions.IsAuthenticated])
